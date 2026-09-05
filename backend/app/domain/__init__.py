@@ -1,0 +1,1 @@
+"""Initialize domain module."""

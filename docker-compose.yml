@@ -1,0 +1,96 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: resolveiq-postgres
+    environment:
+      POSTGRES_USER: resolveiq
+      POSTGRES_PASSWORD: resolveiq_dev
+      POSTGRES_DB: resolveiq
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resolveiq -d resolveiq"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: resolveiq-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ollama - Local LLM (optional, can run on host instead)
+  # To use Ollama on host: set OLLAMA_BASE_URL=http://host.docker.internal:11434
+  # To use Docker Ollama: uncomment below and set OLLAMA_BASE_URL=http://ollama:11434
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: resolveiq-ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   environment:
+  #     OLLAMA_HOST: 0.0.0.0:11434
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resolveiq-backend
+    environment:
+      DATABASE_URL: postgresql://resolveiq:resolveiq_dev@postgres:5432/resolveiq
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: development
+      DEBUG: "true"
+      # LLM Configuration
+      LLM_PROVIDER: ollama
+      LLM_MODEL: neural-chat
+      AI_MODE: live
+      # For local Ollama on host (default for development):
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      # For Docker Ollama (uncomment if using Docker Ollama):
+      # OLLAMA_BASE_URL: http://ollama:11434
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Uncomment if using Docker Ollama:
+      # ollama:
+      #   condition: service_started
+    volumes:
+      - ./backend:/app
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resolveiq-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:8000
+
+volumes:
+  postgres_data:
+  redis_data:
+  # ollama_data:  # Uncomment if using Docker Ollama:
