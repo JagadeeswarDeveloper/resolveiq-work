@@ -30,6 +30,7 @@ export type Complaint = {
     policy_confidence?: number
   }
   incidents?: Incident[]
+  decision_trace?: DecisionTraceEvent[]
 }
 export type DashboardSummary = { total_complaints: number; open_complaints: number; high_priority_complaints: number; avg_resolution_time_hours: number; sla_breach_rate: number; sla_breaches: number; auto_resolution_rate: number; human_approval_rate: number; active_incidents: number }
 export type WorkflowRun = { workflow_id: string; complaint_id: string; status: string; current_node: string; state: Record<string, any>; retry_count: number; last_error?: string }
@@ -69,6 +70,13 @@ export type Incident = {
   volume_change_percent?: number
 }
 export type Customer = { id: string; name: string; email: string; tier?: string; account_status?: string; complaints_count: number; lifetime_value: number }
+export type RiskSummary = { customer_id: string; risk_level: 'LOW' | 'MEDIUM' | 'HIGH'; score: number; reasons: string[]; customer_tier?: string; open_complaints?: number; repeat_complaint_count?: number; order_count?: number; details?: { complaint_count?: number; recent_negative_sentiment_count?: number } }
+export type GraphNode = { id: string; type: string; label: string; status?: string; metadata?: Record<string, unknown> }
+export type GraphEdge = { source: string; target: string; type: string; metadata?: Record<string, unknown> }
+export type GraphData = { nodes: GraphNode[]; edges: GraphEdge[]; center_type?: string; center_id?: string }
+export type DecisionTraceEvent = { step: string; source: string; result: string; confidence?: number; timestamp?: string }
+export type CriticEvaluation = { policy_compliance: 'PASS' | 'FAIL'; evidence_support: 'PASS' | 'FAIL'; customer_context: 'PASS' | 'FAIL'; action_validity: 'PASS' | 'FAIL'; hallucination_risk: 'LOW' | 'MEDIUM' | 'HIGH'; overall_recommendation: 'PASS' | 'REVISE'; review_required: boolean }
+export type IncidentImpact = { incident_id: string; affected_customers: { customer_id: string; customer: string; order_id?: string; reason: string; risk: string; recommended_action: string }[]; affected_customer_count: number; affected_orders: number; affected_products: string[]; affected_regions: string[]; confidence: number }
 
 export const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
@@ -113,6 +121,7 @@ export const incidentAPI = {
   detect: () => api.post<Incident[]>('/incidents/detect'),
   refresh: (id: string) => api.post<Incident[]>(`/incidents/${id}/refresh`),
   evidence: (id: string) => api.get(`/incidents/${id}/evidence`),
+  impact: (id: string) => api.get<IncidentImpact>(`/incidents/${id}/impact`),
 }
 
 export const customerAPI = {
@@ -120,6 +129,18 @@ export const customerAPI = {
   get: (id: string) => api.get<Customer>(`/customers/${id}`),
   complaints: (id: string) => api.get(`/customers/${id}/complaints`),
   orders: (id: string) => api.get(`/customers/${id}/orders`),
+  risk: (id: string) => api.get<{ success: boolean; data: { risk: RiskSummary } }>(`/customers/${id}/risk`),
+}
+
+export const graphAPI = {
+  overview: (entityType?: string, entityId?: string, limit = 40) => api.get<GraphData>('/graph/', { params: { entity_type: entityType, entity_id: entityId, limit } }),
+  entity: (entityType: string, entityId: string) => api.get(`/graph/entity`, { params: { entity_type: entityType, entity_id: entityId } }),
+  neighbors: (entityType: string, entityId: string) => api.get<{ entity_type: string; entity_id: string; neighbors: GraphEdge[] }>('/graph/neighbors', { params: { entity_type: entityType, entity_id: entityId } }),
+}
+
+export const intelligenceAPI = {
+  decisionTrace: (id: string) => api.get<{ complaint_id: string; events: DecisionTraceEvent[] }>(`/complaints/${id}/decision-trace`),
+  critic: (id: string) => api.get<CriticEvaluation>(`/complaints/${id}/critic`),
 }
 
 export const knowledgeAPI = {

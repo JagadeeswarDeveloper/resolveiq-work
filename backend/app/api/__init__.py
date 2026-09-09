@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from .endpoints import complaints, dashboard, incidents, customers, system, knowledge, workflows
+from .endpoints import complaints, dashboard, incidents, customers, system, knowledge, workflows, graph
 
 api_router = APIRouter()
 
@@ -12,6 +12,7 @@ api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboar
 api_router.include_router(incidents.router, prefix="/incidents", tags=["Incidents"])
 api_router.include_router(incidents.cluster_router, prefix="/clusters", tags=["Clusters"])
 api_router.include_router(customers.router, prefix="/customers", tags=["Customers"])
+api_router.include_router(graph.router, prefix="/graph", tags=["Graph"])
 api_router.include_router(system.router, prefix="/system", tags=["System"])
 api_router.include_router(knowledge.router, prefix="/knowledge", tags=["Knowledge"])
 api_router.include_router(workflows.router, prefix="/workflows", tags=["Workflows"])

@@ -30,7 +30,9 @@ class SupervisorAgent:
         self.escalation_keywords = [
             "legal", "fraud", "criminal", "lawsuit", "safety",
             "regulatory", "compliance", "dangerous", "injury",
-            "death", "poison", "recall"
+            "death", "poison", "recall", "account takeover",
+            "unauthorized", "unrecognized payment", "changed my email",
+            "changed the email", "payment method"
         ]
 
     async def decide_routing(

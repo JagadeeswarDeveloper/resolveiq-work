@@ -8,9 +8,13 @@ from app.core.database import get_db
 from app.models import Complaint, Customer
 from app.schemas import ComplaintCreate, ComplaintResponse, ComplaintListItem, APIResponse
 from app.services.complaint_service import ComplaintService
+from app.agents.critic_agent import CriticAgent
+from app.services.decision_trace_service import DecisionTraceService
 
 router = APIRouter()
 complaint_service = ComplaintService()
+critic_agent = CriticAgent()
+decision_trace_service = DecisionTraceService()
 
 
 @router.post("", response_model=ComplaintResponse)
@@ -50,6 +54,18 @@ async def get_complaint(
     if not complaint:
         raise HTTPException(status_code=404, detail="Complaint not found")
     return complaint
+
+
+@router.get("/{complaint_id}/decision-trace")
+async def get_decision_trace(complaint_id: UUID, db: Session = Depends(get_db)):
+    """Return structured explainability events without hidden reasoning."""
+    return {"complaint_id": str(complaint_id), "events": decision_trace_service.get_trace(db, str(complaint_id))}
+
+
+@router.get("/{complaint_id}/critic")
+async def get_critic_evaluation(complaint_id: UUID, db: Session = Depends(get_db)):
+    """Evaluate the current resolution recommendation with bounded checks."""
+    return critic_agent.evaluate(db, str(complaint_id))
 
 
 @router.post("/{complaint_id}/analyze", response_model=APIResponse)

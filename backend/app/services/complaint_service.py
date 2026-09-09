@@ -219,6 +219,15 @@ class ComplaintService:
         # Calculate priority score (0-100)
         priority_score = 50
         reasons = []
+        complaint_text = complaint.raw_text.lower()
+        account_security_risk = any(term in complaint_text for term in (
+            "unauthorized", "account takeover", "changed the email", "payment method",
+            "don't recognize", "do not recognize", "can't log in", "cannot log in",
+        )) or analysis.category == "account" and analysis.severity in [Severity.HIGH, Severity.CRITICAL]
+
+        if account_security_risk:
+            priority_score += 25
+            reasons.append("Potential account takeover or unauthorized payment activity")
         
         # Sentiment factor
         if analysis.sentiment == Sentiment.HIGHLY_NEGATIVE:
@@ -253,7 +262,9 @@ class ComplaintService:
             reasons.append("High-value customer")
         
         priority_level = PriorityLevel.LOW
-        if priority_score >= 80:
+        if account_security_risk:
+            priority_level = PriorityLevel.CRITICAL
+        elif priority_score >= 80:
             priority_level = PriorityLevel.CRITICAL
         elif priority_score >= 60:
             priority_level = PriorityLevel.HIGH

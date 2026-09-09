@@ -56,7 +56,10 @@ def upgrade() -> None:
     }
     for name, column in additions.items():
         if name not in incident_columns:
-            op.add_column("incidents", sa.Column(name, column, sa.ForeignKey("complaint_clusters.id") if name == "cluster_id" else None))
+            foreign_key = None
+            if name == "cluster_id" and bind.dialect.name != "sqlite":
+                foreign_key = sa.ForeignKey("complaint_clusters.id")
+            op.add_column("incidents", sa.Column(name, column, foreign_key))
 
 
 def downgrade() -> None:

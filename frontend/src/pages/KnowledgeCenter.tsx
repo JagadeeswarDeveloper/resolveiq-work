@@ -66,6 +66,7 @@ export default function KnowledgeCenter() {
               <p className="font-medium">{result.document}</p>
               <p className="text-sm text-gray-500">{result.metadata.section || 'Policy section'} · {(result.score * 100).toFixed(0)}% relevant</p>
               <p className="text-sm mt-1">{result.content}</p>
+              <button type="button" className="text-sm text-blue-600 hover:underline mt-2" onClick={() => window.location.assign(`/intelligence-graph?entity=policy&id=${encodeURIComponent(result.document)}`)}>View in Graph</button>
             </div>
           ))}
         </div>

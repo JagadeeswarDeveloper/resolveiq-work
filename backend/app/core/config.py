@@ -1,7 +1,12 @@
 """Core configuration for ResolveIQ backend."""
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
 from typing import Optional
+
+
+LOCAL_DATABASE_URL = f"sqlite:///{(Path(__file__).resolve().parents[2] / 'resolveiq_local_test.db').as_posix()}"
 
 
 class Settings(BaseSettings):
@@ -15,7 +20,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # Database
-    database_url: str = "postgresql://resolveiq:resolveiq_dev@localhost:5432/resolveiq"
+    database_url: str = LOCAL_DATABASE_URL
     sqlalchemy_echo: bool = False
 
     # Redis
@@ -68,3 +73,9 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.database_url.startswith("sqlite:///"):
+    sqlite_path = settings.database_url.removeprefix("sqlite:///")
+    if sqlite_path.startswith("./") or not Path(sqlite_path).is_absolute():
+        resolved_sqlite_path = Path(__file__).resolve().parents[2] / sqlite_path.lstrip("./")
+        settings.database_url = f"sqlite:///{resolved_sqlite_path.as_posix()}"

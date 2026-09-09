@@ -86,21 +86,42 @@ class ResolutionAgent:
                 rec_model.policy_sources = []
                 rec_model.policy_confidence = 0.0
                 rec_model.requires_human_review = True
+
+            account_security_risk = any(term in complaint.raw_text.lower() for term in (
+                "account takeover", "unauthorized", "changed the email", "email address",
+                "unrecognized payment", "payment method", "can't log in", "cannot log in",
+                "do not recognize", "don't recognize",
+            ))
+            if account_security_risk:
+                rec_model.requires_human_review = True
+                rec_model.compensation = None
+                if not any(term in rec_model.recommended_action.lower() for term in ("security", "verify", "account", "lock", "restrict")):
+                    rec_model.recommended_action = "Escalate to a human security reviewer, restrict suspicious account activity, verify identity through a trusted channel, and investigate the unauthorized changes."
+                rec_model.internal_actions = list(dict.fromkeys([
+                    *rec_model.internal_actions,
+                    "Restrict suspicious account activity",
+                    "Verify identity through a trusted channel",
+                    "Review login, email, and payment-method changes",
+                    "Escalate to a human security reviewer",
+                ]))
             
-            # Create database record
-            recommendation = ResolutionRecommendation(
-                complaint_id=complaint.id,
-                recommended_action=rec_model.recommended_action,
-                customer_response=rec_model.customer_response,
-                internal_actions=rec_model.internal_actions or [],
-                compensation=rec_model.compensation.model_dump() if rec_model.compensation else None,
-                reasoning_summary=rec_model.reasoning_summary,
-                confidence=rec_model.confidence,
-                requires_human_review=rec_model.requires_human_review,
-                policy_sources=rec_model.policy_sources or [item["document"] for item in policy_evidence],
-                policy_evidence=policy_evidence,
-                policy_confidence=rec_model.policy_confidence if policy_evidence else 0.0,
-            )
+            # Keep one current recommendation per complaint so repeated runs
+            # cannot leave stale recommendations for the detail view to read.
+            recommendation = db.query(ResolutionRecommendation).filter(
+                ResolutionRecommendation.complaint_id == complaint.id
+            ).first()
+            if not recommendation:
+                recommendation = ResolutionRecommendation(complaint_id=complaint.id)
+            recommendation.recommended_action = rec_model.recommended_action
+            recommendation.customer_response = rec_model.customer_response
+            recommendation.internal_actions = rec_model.internal_actions or []
+            recommendation.compensation = rec_model.compensation.model_dump() if rec_model.compensation else None
+            recommendation.reasoning_summary = rec_model.reasoning_summary
+            recommendation.confidence = rec_model.confidence
+            recommendation.requires_human_review = rec_model.requires_human_review
+            recommendation.policy_sources = rec_model.policy_sources or [item["document"] for item in policy_evidence]
+            recommendation.policy_evidence = policy_evidence
+            recommendation.policy_confidence = rec_model.policy_confidence if policy_evidence else 0.0
             
             db.add(recommendation)
             db.commit()

@@ -7,6 +7,7 @@ from uuid import UUID
 from app.core.database import get_db
 from app.schemas import IncidentResponse, IncidentEvidenceResponse, ComplaintClusterResponse, APIResponse
 from app.services.incident_service import IncidentService
+from app.models import Incident
 
 router = APIRouter()
 cluster_router = APIRouter()
@@ -64,6 +65,40 @@ async def get_incident_complaints(
 @router.get("/{incident_id}/evidence", response_model=list[IncidentEvidenceResponse])
 async def get_incident_evidence(incident_id: UUID, db: Session = Depends(get_db)):
     return await incident_service.get_evidence(db, incident_id)
+
+
+@router.get("/{incident_id}/impact")
+async def get_incident_impact(incident_id: UUID, db: Session = Depends(get_db)):
+    """Return potentially affected customers and orders linked to an incident."""
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    customers = []
+    seen = set()
+    for complaint in incident.complaints:
+        customer = complaint.customer
+        if not customer or customer.id in seen:
+            continue
+        seen.add(customer.id)
+        order = (customer.orders or [None])[0]
+        customers.append({
+            "customer_id": str(customer.id),
+            "customer": customer.name,
+            "order_id": order.external_id if order else None,
+            "reason": incident.potential_root_cause or incident.suspected_root_cause or "Linked complaint pattern",
+            "risk": "HIGH" if complaint.priority and complaint.priority.priority_score and complaint.priority.priority_score >= 75 else "MEDIUM",
+            "recommended_action": "Proactive outreach",
+        })
+    return {
+        "incident_id": str(incident.id),
+        "affected_customers": customers,
+        "affected_customer_count": len(customers),
+        "affected_orders": len({item["order_id"] for item in customers if item["order_id"]}),
+        "affected_products": incident.affected_products or [],
+        "affected_regions": incident.affected_regions or [],
+        "confidence": incident.confidence or 0,
+    }
 
 
 @router.post("/{incident_id}/refresh", response_model=list[IncidentResponse])

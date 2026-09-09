@@ -118,6 +118,17 @@ class ARCEventSchema(BaseModel):
         from_attributes = True
 
 
+class DecisionTraceEntrySchema(BaseModel):
+    step: str
+    source: str
+    result: str
+    confidence: float = 0.0
+    timestamp: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class ComplaintResponse(BaseModel):
     id: UUID
     external_id: Optional[str]
@@ -130,6 +141,7 @@ class ComplaintResponse(BaseModel):
     resolution_recommendation: Optional[ResolutionRecommendationSchema] = None
     arc_events: List[ARCEventSchema] = []
     incidents: List[dict] = []
+    decision_trace: List[DecisionTraceEntrySchema] = []
     created_at: datetime
     updated_at: datetime
 

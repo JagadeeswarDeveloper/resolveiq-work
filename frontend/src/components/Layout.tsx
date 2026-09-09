@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Zap, List, AlertCircle, Menu, CheckCircle2, BookOpen } from 'lucide-react'
+import { Zap, List, AlertCircle, Menu, CheckCircle2, BookOpen, Network } from 'lucide-react'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
@@ -54,6 +54,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             icon={<AlertCircle className="w-5 h-5" />}
             label="Incidents"
             active={isActive('/incidents')}
+            collapsed={!sidebarOpen}
+          />
+          <NavLink
+            to="/intelligence-graph"
+            icon={<Network className="w-5 h-5" />}
+            label="Intelligence Graph"
+            active={isActive('/intelligence-graph')}
             collapsed={!sidebarOpen}
           />
           <NavLink

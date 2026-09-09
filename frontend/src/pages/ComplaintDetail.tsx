@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { complaintAPI, workflowAPI } from '../lib/api'
 import { Link } from 'react-router-dom'
 import { Play, AlertCircle, TrendingUp } from 'lucide-react'
+import { Customer360Panel, CriticPanel, DecisionTracePanel, GraphContextPanel } from '../components/IntelligencePanels'
 
 export default function ComplaintDetail() {
   const { id } = useParams<{ id: string }>()
@@ -116,8 +117,8 @@ export default function ComplaintDetail() {
     { name: 'resolve', label: 'Resolve' },
   ]
 
-  const completedStages = complaint.arc_events?.map((e: any) => e.arc_stage) || []
-  const workflowStages = ['capture', 'unify', 'understand', 'prioritize', 'investigate', 'reason', 'resolve', 'learn']
+  const completedStages = [...(complaint.arc_events?.map((e: any) => e.arc_stage) || []), ...(workflowEvents?.map((event: any) => event.node.toLowerCase()) || [])]
+  const workflowStages = ['capture', 'unify', 'understand', 'prioritize', 'investigate', 'reason', 'critic', 'supervisor', 'resolve', 'learn']
 
   return (
     <div className="space-y-6">
@@ -161,6 +162,13 @@ export default function ComplaintDetail() {
           </div>)}
         </div>
       </div> : null}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Customer360Panel customerId={complaint.customer_id} />
+        <GraphContextPanel complaint={complaint} />
+        <CriticPanel complaintId={complaint.id} />
+        <DecisionTracePanel complaint={complaint} />
+      </div>
 
       {/* ARC Timeline */}
       <div className="bg-white p-6 rounded-lg shadow">

@@ -11,16 +11,18 @@ from app.models import (
     ARCStage, Complaint, ComplaintEvent, ComplaintStatus, WorkflowEvent, WorkflowRun,
 )
 from app.services.complaint_service import ComplaintService
+from app.agents.critic_agent import CriticAgent
+from app.services.decision_trace_service import DecisionTraceService
 from app.core.config import settings
 from app.rag.service import ensure_demo_policies
 from .state import ComplaintWorkflowState
 
 
-NODES = ("CAPTURE", "UNIFY", "UNDERSTAND", "PRIORITIZE", "INVESTIGATE", "REASON", "SUPERVISOR", "RESOLVE", "LEARN")
+NODES = ("CAPTURE", "UNIFY", "UNDERSTAND", "PRIORITIZE", "INVESTIGATE", "REASON", "CRITIC", "SUPERVISOR", "RESOLVE", "LEARN")
 ARC_FOR_NODE = {
     "CAPTURE": ARCStage.CAPTURE, "UNIFY": ARCStage.UNIFY,
     "UNDERSTAND": ARCStage.UNDERSTAND, "PRIORITIZE": ARCStage.PRIORITIZE,
-    "INVESTIGATE": ARCStage.INVESTIGATE, "REASON": ARCStage.REASON,
+    "INVESTIGATE": ARCStage.INVESTIGATE, "REASON": ARCStage.REASON, "CRITIC": ARCStage.REASON,
     "SUPERVISOR": ARCStage.RESOLVE, "RESOLVE": ARCStage.RESOLVE, "LEARN": ARCStage.LEARN,
 }
 
@@ -30,6 +32,8 @@ class ComplaintGraph:
 
     def __init__(self, service: Optional[ComplaintService] = None):
         self.service = service or ComplaintService()
+        self.critic = CriticAgent()
+        self.trace = DecisionTraceService()
 
     async def run(self, db: Session, complaint_id: UUID, workflow_id: Optional[UUID] = None) -> WorkflowRun:
         complaint = await self.service.get_complaint(db, complaint_id)
@@ -109,6 +113,8 @@ class ComplaintGraph:
                 run.state = {**(run.state or {}), **output, "current_stage": node}
                 run.current_node = node
                 self._record_event(db, run, node, output.pop("agent_or_tool", "ComplaintGraph"), output, duration_ms)
+                trace_result = output.get("decision") or output.get("action") or output.get("resolution_outcome") or output.get("overall_recommendation") or node.title()
+                self.trace.record_event(db, str(complaint.id), node.title(), output.get("agent_or_tool", "ComplaintGraph"), str(trace_result), float(output.get("confidence") or 0))
                 db.commit()
                 if node == "SUPERVISOR" and output.get("decision") == "HUMAN_APPROVAL":
                     run.status = "pending_approval"
@@ -153,7 +159,19 @@ class ComplaintGraph:
                 db.refresh(complaint)
             recommendation = complaint.resolution_recommendation
             return {"resolution": {"action": recommendation.recommended_action, "confidence": recommendation.confidence, "requires_human_review": recommendation.requires_human_review, "policy_evidence": recommendation.policy_evidence or []}, "policy_evidence": recommendation.policy_evidence or [], "policy_evidence_available": bool(recommendation.policy_evidence), "agent_or_tool": "ResolutionAgent"}
+        if node == "CRITIC":
+            attempts = int((run.state or {}).get("critic_revision_attempts", 0))
+            result = self.critic.evaluate(db, str(complaint.id))
+            while result["overall_recommendation"] != "PASS" and attempts < 2:
+                attempts += 1
+                await self.service.generate_resolution(db, complaint.id)
+                db.refresh(complaint)
+                result = self.critic.evaluate(db, str(complaint.id))
+            return {"critic": result, "critic_revision_attempts": attempts, "critic_passed": result["overall_recommendation"] == "PASS", "overall_recommendation": result["overall_recommendation"], "agent_or_tool": "CriticAgent"}
         if node == "SUPERVISOR":
+            critic = (run.state or {}).get("critic", {})
+            if critic and critic.get("overall_recommendation") != "PASS":
+                return {"decision": "HUMAN_APPROVAL", "reasoning": "Critic validation requires structured human review before routing.", "confidence": 0.5, "risk_factors": ["Critic validation did not pass"], "agent_or_tool": "SupervisorGuardrail"}
             result = await self.service.supervisor_route_complaint(db, complaint.id)
             return {"supervisor_decision": result or {}, **(result or {}), "agent_or_tool": "SupervisorAgent"}
         if node == "RESOLVE":

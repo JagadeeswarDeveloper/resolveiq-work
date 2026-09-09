@@ -7,9 +7,11 @@ from uuid import UUID
 from app.core.database import get_db
 from app.schemas import CustomerResponse, CustomerCreate, APIResponse
 from app.services.customer_service import CustomerService
+from app.services.customer_risk_service import CustomerRiskService
 
 router = APIRouter()
 customer_service = CustomerService()
+customer_risk_service = CustomerRiskService()
 
 
 @router.post("", response_model=CustomerResponse)
@@ -61,3 +63,13 @@ async def get_customer_orders(
     """Get customer's orders."""
     orders = await customer_service.get_customer_orders(db, customer_id)
     return APIResponse(success=True, message="Orders retrieved", data={"orders": orders})
+
+
+@router.get("/{customer_id}/risk")
+async def get_customer_risk(
+    customer_id: UUID,
+    db: Session = Depends(get_db),
+):
+    """Get explainable risk summary for the customer."""
+    risk = customer_risk_service.score_customer(db, str(customer_id))
+    return APIResponse(success=True, message="Customer risk retrieved", data={"risk": risk})

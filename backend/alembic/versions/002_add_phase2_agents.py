@@ -2,7 +2,6 @@
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 
 revision = "002"
@@ -26,7 +25,7 @@ def upgrade():
     if "source" not in document_columns:
         op.add_column("knowledge_documents", sa.Column("source", sa.String(255), server_default="ResolveIQ demo policy"))
     if "policy_evidence" not in recommendation_columns:
-        op.add_column("resolution_recommendations", sa.Column("policy_evidence", postgresql.JSONB(), nullable=True))
+        op.add_column("resolution_recommendations", sa.Column("policy_evidence", sa.JSON(), nullable=True))
     if "policy_confidence" not in recommendation_columns:
         op.add_column("resolution_recommendations", sa.Column("policy_confidence", sa.Float(), server_default="0"))
 

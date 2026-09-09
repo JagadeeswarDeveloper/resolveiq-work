@@ -9,6 +9,7 @@ import IncidentDetail from './pages/IncidentDetail'
 import CustomerDetail from './pages/CustomerDetail'
 import Approval from './pages/Approval'
 import KnowledgeCenter from './pages/KnowledgeCenter'
+import IntelligenceGraph from './pages/IntelligenceGraph'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -27,6 +28,7 @@ function App() {
             <Route path="/customers/:id" element={<CustomerDetail />} />
             <Route path="/approval" element={<Approval />} />
             <Route path="/knowledge" element={<KnowledgeCenter />} />
+            <Route path="/intelligence-graph" element={<IntelligenceGraph />} />
           </Routes>
         </Layout>
       </Router>

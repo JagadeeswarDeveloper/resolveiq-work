@@ -112,6 +112,15 @@ export default function Dashboard() {
         )) : <p className="text-slate-300">No potential incidents detected.</p>}
       </section>
 
+      <section className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-4"><div><p className="text-xs uppercase tracking-wider text-blue-600 font-semibold">Operations intelligence</p><h2 className="text-lg font-semibold">Emerging signals</h2></div><Link className="text-sm text-blue-600 hover:underline" to="/intelligence-graph">Open Intelligence Graph</Link></div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Link to="/incidents" className="border rounded-lg p-4 hover:border-red-300"><p className="font-semibold">Emerging incidents</p><p className="text-sm text-slate-500 mt-1">{incidents?.length || 0} potential operational patterns</p></Link>
+          <Link to="/complaints?status=pending_approval" className="border rounded-lg p-4 hover:border-amber-300"><p className="font-semibold">SLA risk</p><p className="text-sm text-slate-500 mt-1">{summary?.sla_breaches || 0} complaints with SLA signals</p></Link>
+          <Link to="/customers" className="border rounded-lg p-4 hover:border-blue-300"><p className="font-semibold">Customer 360</p><p className="text-sm text-slate-500 mt-1">Inspect repeat complaints and explainable risk</p></Link>
+        </div>
+      </section>
+
       {/* Quick Actions */}
       <QuickActions />
     </div>

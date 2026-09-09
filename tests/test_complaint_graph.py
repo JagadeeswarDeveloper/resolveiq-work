@@ -98,7 +98,7 @@ def test_workflow_pauses_and_resumes_without_duplicate_events():
             resumed = await graph.resume(db, run.id, approved=True)
             assert resumed.status == "completed"
             assert resumed.current_node == "END"
-            assert event_count == 7
+            assert event_count == 8
             assert await graph.resume(db, run.id, approved=True) == resumed
         finally:
             db.close()

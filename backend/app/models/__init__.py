@@ -213,6 +213,7 @@ class Complaint(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     resolved_at = Column(DateTime)
+    decision_trace = Column(JSONB, default=list)
 
     # Relationships
     customer = relationship("Customer", back_populates="complaints")
